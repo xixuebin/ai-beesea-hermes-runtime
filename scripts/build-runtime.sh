@@ -23,11 +23,14 @@ python_bin="$(uv python find "${python_version}")"
 python_root="$(cd "$(dirname "${python_bin}")/.." && pwd)"
 cp -R "${python_root}/." "${output_dir}/python/cpython/"
 
-# 由上游 uv.lock 锁定依赖；项目自身使用 --no-deps 安装，确保没有在构建时重新解析版本。
+# 由上游 uv.lock 锁定第三方依赖，确保不会在构建时重新解析版本。
 uv export --directory "${source_dir}" --frozen --no-dev --no-emit-project --format requirements-txt -o "${root}/dist/requirements.txt"
 uv pip install --python "${python_bin}" --target "${output_dir}/python/site-packages" -r "${root}/dist/requirements.txt"
-uv pip install --python "${python_bin}" --target "${output_dir}/python/site-packages" --no-deps "${source_dir}"
 rm "${root}/dist/requirements.txt"
+
+# 上游明确禁止构建 wheel/sdist；复制锁定提交的源码并由启动脚本加入 PYTHONPATH，避免 editable
+# install 写入包含 CI 绝对路径的 .pth 文件，同时保留上游运行时需要的模板、静态资源和脚本。
+rsync -a --exclude '.git' "${source_dir}/" "${output_dir}/app/"
 
 # Hermes 的部分工具需要 Node。复制 Actions 安装的完整 Node 前缀，不使用宿主机 PATH。
 node_bin="$(command -v node)"
@@ -40,7 +43,7 @@ cat > "${output_dir}/python/venv/bin/hermes" <<'EOF'
 set -euo pipefail
 runtime_root="$(cd "$(dirname "$0")/../../.." && pwd)"
 export PYTHONHOME="${runtime_root}/python/cpython"
-export PYTHONPATH="${runtime_root}/python/site-packages${PYTHONPATH:+:${PYTHONPATH}}"
+export PYTHONPATH="${runtime_root}/app:${runtime_root}/python/site-packages${PYTHONPATH:+:${PYTHONPATH}}"
 export PATH="${runtime_root}/node/bin:${PATH}"
 exec "${runtime_root}/python/cpython/bin/python3" -m hermes_cli.main "$@"
 EOF
