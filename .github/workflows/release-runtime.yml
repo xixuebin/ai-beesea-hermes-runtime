@@ -1,0 +1,81 @@
+name: Build Hermes Runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      hermes_ref:
+        description: Hermes Agent tag or immutable commit
+        required: true
+        default: v2026.8.27
+      publish:
+        description: Create a GitHub Release (false only verifies and uploads an artifact)
+        required: true
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'runtime-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  darwin-arm64:
+    name: darwin-arm64
+    runs-on: macos-14
+    env:
+      HERMES_REPOSITORY: NousResearch/hermes-agent
+      HERMES_REF: ${{ inputs.hermes_ref || 'v2026.8.27' }}
+      RUNTIME_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', inputs.hermes_ref || '2026.8.27') }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '26'
+          architecture: arm64
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: '0.10.10'
+
+      - name: Checkout locked Hermes source
+        run: |
+          git clone --filter=blob:none https://github.com/${HERMES_REPOSITORY}.git upstream/hermes-agent
+          git -C upstream/hermes-agent checkout --detach "${HERMES_REF}"
+          test "$(git -C upstream/hermes-agent rev-parse HEAD)" = '5fc308a70719a83cccdbba4c0e39c23f5a8239d5'
+
+      - name: Assemble standalone runtime
+        run: scripts/build-runtime.sh
+
+      - name: Verify runtime
+        run: scripts/verify-runtime.sh dist/runtime
+
+      - name: Archive runtime
+        run: |
+          archive="hermes-runtime-${RUNTIME_VERSION}-darwin-arm64.zip"
+          ditto -c -k --sequesterRsrc --keepParent dist/runtime "dist/${archive}"
+          shasum -a 256 "dist/${archive}" > "dist/${archive}.sha256"
+
+      - name: Upload verification artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-runtime-darwin-arm64
+          path: |
+            dist/*.zip
+            dist/*.sha256
+            dist/runtime/runtime-manifest.json
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' || inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${RUNTIME_VERSION}" dist/*.zip dist/*.sha256 \
+            --title "Hermes Runtime ${RUNTIME_VERSION} (darwin-arm64)" \
+            --notes "Hermes Agent ${HERMES_REF}, locked to commit 5fc308a70719a83cccdbba4c0e39c23f5a8239d5."
