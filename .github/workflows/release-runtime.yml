@@ -26,7 +26,7 @@ jobs:
     env:
       HERMES_REPOSITORY: NousResearch/hermes-agent
       HERMES_REF: ${{ inputs.hermes_ref || 'v2026.8.27' }}
-      RUNTIME_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', inputs.hermes_ref || '2026.8.27') }}
+      RUNTIME_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || inputs.hermes_ref || 'v2026.8.27' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -50,10 +50,10 @@ jobs:
           test "$(git -C upstream/hermes-agent rev-parse HEAD)" = '5fc308a70719a83cccdbba4c0e39c23f5a8239d5'
 
       - name: Assemble standalone runtime
-        run: scripts/build-runtime.sh
+        run: bash scripts/build-runtime.sh
 
       - name: Verify runtime
-        run: scripts/verify-runtime.sh dist/runtime
+        run: bash scripts/verify-runtime.sh dist/runtime
 
       - name: Archive runtime
         run: |
