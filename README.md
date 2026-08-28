@@ -18,8 +18,9 @@
 - `python/venv/bin/hermes`：Desktop 调用的 Hermes 入口。
 - `python/cpython` 与 `python/site-packages`：内置 Python 与锁定的 Hermes 依赖。
 - `node`：Hermes 浏览器等工具所需的内置 Node 26。
+- `agent-client-protocol`：BeeSea Desktop 发起 Agent 会话所需的 Hermes ACP 依赖。
 
-每个 zip 都会发布同名 `.sha256` 文件。当前未做代码签名或公证，下载端应先校验 SHA-256。
+每个 zip 都会发布同名 `.sha256` 文件。构建验证会同时导入 ACP 适配器，防止发布缺少 ACP optional extra、只能检测到 Runtime 而无法执行会话的包。当前未做代码签名或公证，下载端应先校验 SHA-256。
 
 ## 构建与发布
 

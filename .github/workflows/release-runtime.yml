@@ -7,6 +7,10 @@ on:
         description: Hermes Agent tag or immutable commit
         required: true
         default: v2026.8.27
+      runtime_version:
+        description: BeeSea Runtime release tag
+        required: true
+        default: v2026.8.28
       publish:
         description: Create a GitHub Release (false only verifies and uploads an artifact)
         required: true
@@ -26,7 +30,7 @@ jobs:
     env:
       HERMES_REPOSITORY: NousResearch/hermes-agent
       HERMES_REF: ${{ inputs.hermes_ref || 'v2026.8.27' }}
-      RUNTIME_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || inputs.hermes_ref || 'v2026.8.27' }}
+      RUNTIME_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || inputs.runtime_version || 'v2026.8.28' }}
     steps:
       - uses: actions/checkout@v5
 

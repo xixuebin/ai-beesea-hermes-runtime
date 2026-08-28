@@ -24,7 +24,9 @@ python_root="$(cd "$(dirname "${python_bin}")/.." && pwd)"
 cp -R "${python_root}/." "${output_dir}/python/cpython/"
 
 # 由上游 uv.lock 锁定第三方依赖，确保不会在构建时重新解析版本。
-uv export --directory "${source_dir}" --frozen --no-dev --no-emit-project --format requirements-txt -o "${root}/dist/requirements.txt"
+# BeeSea Desktop 通过 ACP 驱动 Hermes；该依赖是上游可选 extra，必须显式导出，
+# 否则 Runtime 表面可执行但会在第一条会话初始化时退出。
+uv export --directory "${source_dir}" --frozen --no-dev --extra acp --no-emit-project --format requirements-txt -o "${root}/dist/requirements.txt"
 uv pip install --python "${python_bin}" --target "${output_dir}/python/site-packages" -r "${root}/dist/requirements.txt"
 rm "${root}/dist/requirements.txt"
 
